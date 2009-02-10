@@ -23,24 +23,28 @@ public class SetUtils {
 	 * 
 	 * @return the disjoint set of elements from {@code col1} and {@code col2}
 	 */
-	public static <T> Collection<T> disjoint(Collection<T> col1, Collection<T> col2) {
-		Set<T> disjoint = new HashSet<T>();
+	public static <T> Collection<SetObjectInfo<T>> disjoint(Collection<T> col1, Collection<T> col2) {
+		Set<SetObjectInfo<T>> disjoint = new HashSet<SetObjectInfo<T>>();
 		
 		if(col1 == null) {
 			if(col2 != null) {
-				disjoint.addAll(col2);
+				for(T obj : col2) {
+					disjoint.add(new SetObjectInfo<T>(DisjointInfo.RIGHT, obj));
+				}
 			}
 		} else if(col2 != null) {
 			for(T obj : col1) {
 				if(!col2.contains(obj))
-					disjoint.add(obj);
+					disjoint.add(new SetObjectInfo<T>(DisjointInfo.LEFT, obj));
 			}
 			for(T obj : col2) {
 				if(!col1.contains(obj))
-					disjoint.add(obj);
+					disjoint.add(new SetObjectInfo<T>(DisjointInfo.RIGHT, obj));
 			}
 		} else {
-			disjoint.addAll(col1);
+			for(T obj : col1) {
+				disjoint.add(new SetObjectInfo<T>(DisjointInfo.LEFT, obj));
+			}
 		}
 		return disjoint;
 	}
