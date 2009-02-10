@@ -14,6 +14,7 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
+import org.jam.utils.SetObjectInfo;
 import org.jam.utils.SetUtils;
 
 @SuppressWarnings("unchecked")
@@ -31,15 +32,14 @@ public class Diff4J {
 	}
 
 	private static final Logger logger = Logger.getLogger(Diff4J.class);
-	private static int depth = -1;
+	private int depth = -1;
 
 	private Set visited = new HashSet();
 
 	private Collection<ChangeInfo> changes = new LinkedList<ChangeInfo>();
 
 	public Collection<ChangeInfo> diff(Object left, Object right) {
-		handleObject(
-				new TypeInfo(left, left.getClass(), null, null),
+		handleObject(new TypeInfo(left, left.getClass(), null, null),
 				new TypeInfo(right, right.getClass(), null, null));
 		return changes;
 	}
@@ -84,7 +84,7 @@ public class Diff4J {
 
 	private void handleClass(TypeInfo left, TypeInfo right) {
 		if (logger.isDebugEnabled())
-			logger.debug(getTabs() + "Class: " + left.clz.getName());
+			logger.debug(getTabs(depth) + "Class: " + left.clz.getName());
 
 		Field[] fields;
 
@@ -96,12 +96,13 @@ public class Diff4J {
 
 				for (Field field : fields) {
 					int modifiers = field.getModifiers();
-					if (!(Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers))) {
+					if (!(Modifier.isStatic(modifiers) || Modifier
+							.isFinal(modifiers))) {
 						Object fieldObj1 = getObject(field, left.obj);
 						Object fieldObj2 = getObject(field, right.obj);
-						handleObject(
-								new TypeInfo(fieldObj1, field.getType(), left.obj, field), 
-								new TypeInfo(fieldObj2, field.getType(), right.obj, field));
+						handleObject(new TypeInfo(fieldObj1, field.getType(),
+								left.obj, field), new TypeInfo(fieldObj2, field
+								.getType(), right.obj, field));
 					}
 				}
 
@@ -135,27 +136,30 @@ public class Diff4J {
 
 	private void handleCollection(TypeInfo left, TypeInfo right) {
 		if (logger.isDebugEnabled())
-			logger.debug(getTabs() + "Collection: " + left.field.getName());
+			logger
+					.debug(getTabs(depth) + "Collection: "
+							+ left.field.getName());
 
 		Class<?> colType = getParameterizedType(left.field);
-		Class<?> parentType = left.parent.getClass();
-		
+
 		Collection col1 = (Collection) left.obj;
 		Collection col2 = (Collection) right.obj;
 
-		Collection<?> disjoint = SetUtils.disjoint(col1, col2);
+		Collection<SetObjectInfo<?>> disjoint = SetUtils.disjoint(col1, col2);
 
-		//process the differences
-		for (Object obj : disjoint) {
+		// process the differences
+		for (SetObjectInfo<?> objInfo : disjoint) {
 			ChangeInfo change = new ChangeInfo();
 			change.setFieldName(left.field.getName());
-			change.setEnclosingType(parentType);
+			change.setParentLeft(left.parent);
+			change.setParentRight(right.parent);
 
-			if (col1.contains(obj)) {
-				change.setFrom(obj);
+			switch (objInfo.from) {
+			case LEFT:
+				change.setFrom(objInfo.obj);
 				change.setChangeType(ChangeType.REMOVE);
-			} else {
-				change.setTo(obj);
+			case RIGHT:
+				change.setTo(objInfo.obj);
 				change.setChangeType(ChangeType.ADD);
 			}
 
@@ -163,10 +167,10 @@ public class Diff4J {
 		}
 
 		Map<Integer, ?> col2Map = SetUtils.getIdentityMap(col2);
-		
+
 		Collection<?> intersection = SetUtils.intersection(col1, col2);
 
-		//examine the commnon objects...
+		// examine the commnon objects...
 		for (Object leftObj : intersection) {
 			Object rightObj = col2Map.get(leftObj.hashCode());
 			handleObject(
@@ -182,8 +186,7 @@ public class Diff4J {
 			ParameterizedType pType = (ParameterizedType) type;
 			Type[] typeArgs = pType.getActualTypeArguments();
 
-			if (typeArgs != null 
-					&& typeArgs.length > 0
+			if (typeArgs != null && typeArgs.length > 0
 					&& typeArgs[0] instanceof Class<?>)
 				return (Class<?>) typeArgs[0];
 		}
@@ -194,18 +197,16 @@ public class Diff4J {
 		if (logger.isDebugEnabled()) {
 			StringBuilder output = new StringBuilder();
 
-			output.append(getTabs()).
-				append("Field: ").
-				append(left.field.getName()).
-				append(" Value: ").
-				append(left.obj.toString());
+			output.append(getTabs(depth))
+				.append("Field: ")
+				.append(left.field.getName())
+				.append(" Value: ")
+				.append(left.obj.toString());
 
 			logger.debug(output.toString());
 		}
 
 		ChangeInfo change = null;
-		
-		Class<?> parentType = left.parent.getClass();
 
 		if (left.obj == null) {
 			if (right.obj != null) {
@@ -213,7 +214,8 @@ public class Diff4J {
 				change.setChangeType(ChangeType.ADD);
 				change.setTo(right.obj);
 				change.setFieldName(left.field.getName());
-				change.setEnclosingType(parentType);
+				change.setParentLeft(left.parent);
+				change.setParentRight(right.parent);
 			}
 		} else if (right.obj != null) {
 			if (!left.obj.equals(right.obj)) {
@@ -222,21 +224,23 @@ public class Diff4J {
 				change.setFrom(left.obj);
 				change.setTo(right.obj);
 				change.setFieldName(left.field.getName());
-				change.setEnclosingType(parentType);
+				change.setParentLeft(left.parent);
+				change.setParentRight(right.parent);
 			}
 		} else {
 			change = new ChangeInfo();
 			change.setChangeType(ChangeType.REMOVE);
 			change.setFrom(left.obj);
 			change.setFieldName(left.field.getName());
-			change.setEnclosingType(parentType);
+			change.setParentLeft(left.parent);
+			change.setParentRight(right.parent);
 		}
 
 		if (change != null)
 			changes.add(change);
 	}
 
-	private static String getTabs() {
+	private static String getTabs(int depth) {
 		StringBuilder tabs = new StringBuilder();
 		for (int i = 0; i < depth; ++i)
 			tabs.append('\t');
@@ -244,8 +248,7 @@ public class Diff4J {
 	}
 
 	private static boolean isPrimitiveOrWrapper(Class<?> clz) {
-		return clz.isPrimitive() 
-				|| Number.class.isAssignableFrom(clz)
+		return clz.isPrimitive() || Number.class.isAssignableFrom(clz)
 				|| Boolean.class.isAssignableFrom(clz)
 				|| Character.class.isAssignableFrom(clz)
 				|| String.class.isAssignableFrom(clz);

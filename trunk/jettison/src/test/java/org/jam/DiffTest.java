@@ -1,49 +1,91 @@
 package org.jam;
 
 import java.util.Collection;
+import java.util.Random;
 import java.util.UUID;
 
 import org.junit.Test;
 
+import static org.junit.Assert.*;
+
 public class DiffTest {
-	@Test
-	public void testTraversal() throws Exception {
+	
+	private static final Random r = new Random(System.nanoTime());
+	private static char[] alphaNums;
+	
+	static {
+		alphaNums = new char[62];
+		
+		StringBuilder builder = new StringBuilder();
+		for(char c = 'a'; c <= 'z'; ++c)
+			builder.append(c);
+		for(char c = 'A'; c <= 'Z'; ++c)
+			builder.append(c);
+		for(int i = 0; i < 10; ++i)
+			builder.append(Integer.toString(i));
+		alphaNums = builder.toString().toCharArray();
+	}
+	
+	private static Manager newManager() {
 		Manager m1 = new Manager();
 		m1.setFirstName("John");
 		m1.setLastName("Doe");
 		m1.setEmployeeId(UUID.randomUUID().toString());
 		m1.setAddress("my address");
-		
-		String managerId = m1.getEmployeeId();
-		
-		Manager m2 = new Manager();
-		m2.setFirstName("John");
-		m2.setLastName("Doe");
-		m2.setEmployeeId(managerId);
-		m2.setAddress("MY address");
-		
+		return m1;
+	}
+	
+	private static Employee newEmployee() {
 		Employee e = new Employee();
 		e.setFirstName("Jane");
 		e.setLastName("Doe");
 		e.setEmployeeId(UUID.randomUUID().toString());
 		e.setAddress("some address");
+		return e;
+	}
+	
+	private static String randomString(int len) {
+		StringBuilder builder = new StringBuilder();
+		while(--len >= 0) {
+			builder.append(alphaNums[r.nextInt(alphaNums.length)]);
+		}
+		return builder.toString();
+	}
+	
+	@Test
+	public void testSimpleProperties() throws Exception {
+		Manager m1 = newManager();
+		Manager m2 = newManager();
 		
-		m1.addPerson(e);
+		m2.setEmployeeId(m1.getEmployeeId());
 		
-		String id = e.getEmployeeId();
-		
-		e = new Employee();
-		e.setFirstName("Jane");
-		e.setLastName("Doe");
-		e.setEmployeeId(id);
-		e.setAddress("some different address");
-		
-		m2.addPerson(e);
+		m1.setAddress(randomString(20));
 		
 		Diff4J differ = new Diff4J();
 		Collection<ChangeInfo> changes = differ.diff(m1, m2);
 		
-		printChanges(changes);
+		assertEquals(1, changes.size());
+	}
+	
+	@Test
+	public void testCollectionSimple() throws Exception {
+		Manager m1 = newManager();
+		Manager m2 = newManager();
+		m2.setEmployeeId(m1.getEmployeeId());
+		m2.setAddress("MY address");
+		
+		Employee e1 = newEmployee();
+		Employee e2 = newEmployee();
+		e2.setEmployeeId(e1.getEmployeeId());
+		e2.setAddress(randomString(20));
+		
+		m1.addPerson(e1);
+		m2.addPerson(e2);
+		
+		Diff4J differ = new Diff4J();
+		Collection<ChangeInfo> changes = differ.diff(m1, m2);
+		
+		assertEquals(2, changes.size());
 	}
 	
 	protected static void printChanges(Collection<ChangeInfo> changes) {

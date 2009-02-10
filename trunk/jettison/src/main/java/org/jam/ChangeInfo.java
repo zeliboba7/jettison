@@ -1,7 +1,8 @@
 package org.jam;
 
 public class ChangeInfo {
-	private Class<?> enclosingType;
+	private Object parentLeft;
+	private Object parentRight;
 	
 	private Object from;
 	private Object to;
@@ -42,12 +43,22 @@ public class ChangeInfo {
 		return fieldName;
 	}
 
-	public Class<?> getEnclosingType() {
-		return enclosingType;
+	public Object getParentLeft() {
+		return parentLeft;
 	}
 
-	public void setEnclosingType(Class<?> enclosingType) {
-		this.enclosingType = enclosingType;
+	public void setParentLeft(Object parentLeft) {
+		this.parentLeft = parentLeft;
 	}
+
+	public Object getParentRight() {
+		return parentRight;
+	}
+
+	public void setParentRight(Object parentRight) {
+		this.parentRight = parentRight;
+	}
+
+
 
 }
